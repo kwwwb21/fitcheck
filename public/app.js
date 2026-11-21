@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const state = { person: null, garment: null };
+const state = { person: null, personSend: null, personBox: null, garment: null };
 
 // Shrink images in the browser so uploads stay small and fast.
 function resizeImage(src, maxSide = 1024) {
@@ -42,6 +42,43 @@ function padTo3x4(src) {
   });
 }
 
+const loadImage = (src) => new Promise((resolve, reject) => {
+  const img = new Image();
+  img.onload = () => resolve(img);
+  img.onerror = () => reject(new Error("That image couldn't be opened."));
+  img.src = src;
+});
+
+// Widen or heighten the person photo to 3:4 by adding a blurred copy of the photo
+// around it (no stretching, nothing cut off). Returns the padded image and where the
+// original sits inside it, as fractions, so we can trim the result back afterwards.
+async function padPerson(src) {
+  const img = await loadImage(src);
+  const W = 768, H = 1024;
+  const scale = Math.min(W / img.width, H / img.height);
+  const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+  const x = Math.round((W - w) / 2), y = Math.round((H - h) / 2);
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  const cover = Math.max(W / img.width, H / img.height);
+  ctx.filter = "blur(24px)";
+  ctx.drawImage(img, (W - img.width * cover) / 2, (H - img.height * cover) / 2, img.width * cover, img.height * cover);
+  ctx.filter = "none";
+  ctx.drawImage(img, x, y, w, h);
+  return { image: canvas.toDataURL("image/jpeg", 0.92), box: { x: x / W, y: y / H, w: w / W, h: h / H } };
+}
+
+// Cut the padding back off the model's result so it matches the original photo's shape.
+async function trimResult(src, box) {
+  const img = await loadImage(src);
+  const sx = box.x * img.width, sy = box.y * img.height, sw = box.w * img.width, sh = box.h * img.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(sw); canvas.height = Math.round(sh);
+  canvas.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL("image/jpeg", 0.92);
+}
+
 const readFile = (file) => new Promise((resolve, reject) => {
   const r = new FileReader();
   r.onload = () => resolve(r.result);
@@ -72,6 +109,9 @@ $("personInput").addEventListener("change", async (e) => {
   if (!file) return;
   try {
     state.person = await resizeImage(await readFile(file));
+    const padded = await padPerson(state.person);
+    state.personSend = padded.image;
+    state.personBox = padded.box;
     $("personPreview").src = state.person;
     $("personPreview").hidden = false;
     $("personPlaceholder").hidden = true;
@@ -135,7 +175,7 @@ $("tryBtn").addEventListener("click", async () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        person: state.person,
+        person: state.personSend,
         garment: state.garment,
         description: $("description").value,
         code: $("accessCode").value,
@@ -144,8 +184,9 @@ $("tryBtn").addEventListener("click", async () => {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     $("beforeImg").src = state.person;
-    $("afterImg").src = data.image;
-    $("downloadLink").href = data.image;
+    const after = await trimResult(data.image, state.personBox);
+    $("afterImg").src = after;
+    $("downloadLink").href = after;
     $("resultCard").hidden = false;
     $("resultCard").scrollIntoView({ behavior: "smooth" });
     setStatus("");

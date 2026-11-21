@@ -188,7 +188,7 @@ app.post("/api/tryon", async (req, res) => {
       garm_img: handle_file(dataUrlToBlob(garment)),
       garment_des: String(description || "a shirt").slice(0, 200),
       is_checked: true, // auto-mask the clothing area
-      is_checked_crop: false,
+      is_checked_crop: true, // crop to 3:4 around the person, then paste back, so the photo keeps its shape
       denoise_steps: 30,
       seed: 42,
     });

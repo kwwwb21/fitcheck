@@ -21,6 +21,27 @@ function resizeImage(src, maxSide = 1024) {
   });
 }
 
+// Fit an image inside a 3:4 white frame (768x1024, the model's size) without stretching it.
+function padTo3x4(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const W = 768, H = 1024;
+      const scale = Math.min(W / img.width, H / img.height) * 0.95; // small margin around the garment
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, W, H);
+      ctx.drawImage(img, Math.round((W - w) / 2), Math.round((H - h) / 2), w, h);
+      resolve(canvas.toDataURL("image/jpeg", 0.92));
+    };
+    img.onerror = () => reject(new Error("That image couldn't be opened."));
+    img.src = src;
+  });
+}
+
 const readFile = (file) => new Promise((resolve, reject) => {
   const r = new FileReader();
   r.onload = () => resolve(r.result);
@@ -84,7 +105,7 @@ $("linkForm").addEventListener("submit", async (e) => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
-    setGarment(await resizeImage(data.image));
+    setGarment(await padTo3x4(data.image));
     setStatus("Found it. Check the picture is the right item.");
   } catch (err) {
     setStatus(err.message || "Couldn't read that link.", "error");
@@ -98,7 +119,7 @@ $("garmentInput").addEventListener("change", async (e) => {
   const file = e.target.files[0];
   if (!file) return;
   try {
-    setGarment(await resizeImage(await readFile(file)));
+    setGarment(await padTo3x4(await readFile(file)));
     setStatus("");
   } catch (err) {
     setStatus(err.message, "error");

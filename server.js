@@ -212,4 +212,5 @@ module.exports = { findProductImage, isPrivateIp };
 
 if (require.main === module) app.listen(PORT, () => {
   console.log(`Try-on app running at http://localhost:${PORT}`);
+  console.log(HF_TOKEN ? "Hugging Face token: found (using your account's free allowance)" : "Hugging Face token: NOT SET (using the small anonymous allowance)");
 });

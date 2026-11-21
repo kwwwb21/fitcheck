@@ -1,13 +1,12 @@
-// Virtual try-on web app: serves the frontend and proxies to Replicate.
+// Virtual try-on web app: serves the frontend and calls a free try-on model on Hugging Face.
 const express = require("express");
 const dns = require("dns").promises;
 const net = require("net");
 const path = require("path");
 
 const PORT = process.env.PORT || 3000;
-const REPLICATE_TOKEN = process.env.REPLICATE_API_TOKEN;
-const MODEL = process.env.TRYON_MODEL || "cuuupid/idm-vton";
-const REPLICATE = "https://api.replicate.com/v1";
+const HF_SPACE = process.env.HF_SPACE || "yisol/IDM-VTON"; // free public try-on demo
+const HF_TOKEN = process.env.HF_TOKEN || ""; // optional free Hugging Face token for a bigger daily allowance
 const ACCESS_CODE = process.env.ACCESS_CODE || ""; // optional password for the try-on button
 const TRYONS_PER_DAY = Number(process.env.TRYONS_PER_IP_PER_DAY || 10);
 const TRYONS_TOTAL_PER_DAY = Number(process.env.TRYONS_TOTAL_PER_DAY || 100);
@@ -19,7 +18,7 @@ app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/config", (req, res) => res.json({ needsCode: Boolean(ACCESS_CODE) }));
 
-// Simple in-memory daily limits so a public link can't run up the Replicate bill.
+// Simple in-memory daily limits so one visitor can't use up the shared free allowance.
 const usage = { day: "", total: 0, byIp: new Map() };
 function checkLimit(ip) {
   const today = new Date().toISOString().slice(0, 10);
@@ -148,24 +147,33 @@ app.post("/api/extract-shirt", async (req, res) => {
   }
 });
 
-// ---------- Try-on via Replicate ----------
+// ---------- Try-on via the free IDM-VTON demo on Hugging Face ----------
 
-let cachedVersion = null;
-async function modelVersion() {
-  if (cachedVersion) return cachedVersion;
-  const r = await fetch(`${REPLICATE}/models/${MODEL}`, { headers: { Authorization: `Bearer ${REPLICATE_TOKEN}` } });
-  if (!r.ok) throw new Error(`Couldn't look up the try-on model (${r.status}).`);
-  const data = await r.json();
-  cachedVersion = data.latest_version?.id;
-  if (!cachedVersion) throw new Error("The try-on model has no published version.");
-  return cachedVersion;
+let clientPromise = null;
+function tryonClient() {
+  if (!clientPromise) {
+    clientPromise = import("@gradio/client")
+      .then(({ Client }) => Client.connect(HF_SPACE, HF_TOKEN ? { hf_token: HF_TOKEN } : {}))
+      .catch((err) => { clientPromise = null; throw err; });
+  }
+  return clientPromise;
 }
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+function dataUrlToBlob(dataUrl) {
+  const [, type, b64] = dataUrl.match(/^data:([^;]+);base64,(.*)$/s);
+  return new Blob([Buffer.from(b64, "base64")], { type });
+}
+
+function friendlyError(err) {
+  const msg = String(err?.message || err || "");
+  if (/quota|exceeded|ZeroGPU/i.test(msg)) return "The free try-on service has hit its usage limit for now. Please try again later.";
+  if (/queue|busy|timeout|timed out/i.test(msg)) return "The free try-on service is busy right now. Please try again in a few minutes.";
+  if (/sleep|paused|building|not running|503/i.test(msg)) return "The free try-on service is starting up or unavailable. Please try again in a minute.";
+  return "The try-on didn't work. Please try a different photo or try again later.";
+}
 
 app.post("/api/tryon", async (req, res) => {
-  if (!REPLICATE_TOKEN) return res.status(500).json({ error: "The server has no REPLICATE_API_TOKEN set." });
-  const { person, garment, description, category } = req.body || {};
+  const { person, garment, description } = req.body || {};
   const isImg = (s) => typeof s === "string" && /^data:image\/[a-z+.-]+;base64,/.test(s);
   if (!isImg(person) || !isImg(garment)) return res.status(400).json({ error: "Both a photo and a shirt image are required." });
   if (ACCESS_CODE && req.body.code !== ACCESS_CODE) return res.status(401).json({ error: "Wrong access code." });
@@ -173,40 +181,30 @@ app.post("/api/tryon", async (req, res) => {
   if (limited) return res.status(429).json({ error: limited });
 
   try {
-    const version = await modelVersion();
-    const headers = { Authorization: `Bearer ${REPLICATE_TOKEN}`, "Content-Type": "application/json", Prefer: "wait=55" };
-    const create = await fetch(`${REPLICATE}/predictions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        version,
-        input: {
-          human_img: person,
-          garm_img: garment,
-          garment_des: String(description || "a shirt").slice(0, 200),
-          category: ["upper_body", "lower_body", "dresses"].includes(category) ? category : "upper_body",
-          crop: false,
-          steps: 30,
-          seed: 42,
-        },
-      }),
+    const { handle_file } = await import("@gradio/client");
+    const client = await tryonClient();
+    const result = await client.predict("/tryon", {
+      dict: { background: handle_file(dataUrlToBlob(person)), layers: [], composite: null },
+      garm_img: handle_file(dataUrlToBlob(garment)),
+      garment_des: String(description || "a shirt").slice(0, 200),
+      is_checked: true, // auto-mask the clothing area
+      is_checked_crop: false,
+      denoise_steps: 30,
+      seed: 42,
     });
-    let pred = await create.json();
-    if (!create.ok) throw new Error(pred.detail || `Replicate error (${create.status}).`);
+    const out = Array.isArray(result.data) ? result.data[0] : result.data;
+    const url = typeof out === "string" ? out : out?.url;
+    if (!url) throw new Error("No image returned");
 
-    const deadline = Date.now() + 4 * 60 * 1000;
-    while (!["succeeded", "failed", "canceled"].includes(pred.status)) {
-      if (Date.now() > deadline) throw new Error("The try-on took too long. Please try again.");
-      await sleep(2000);
-      const poll = await fetch(pred.urls.get, { headers: { Authorization: `Bearer ${REPLICATE_TOKEN}` } });
-      pred = await poll.json();
-    }
-    if (pred.status !== "succeeded") throw new Error(pred.error ? `The try-on failed: ${pred.error}` : "The try-on failed.");
-
-    const output = Array.isArray(pred.output) ? pred.output[0] : pred.output;
-    res.json({ image: output });
+    // Download the result so the browser gets a lasting image, not a temporary link.
+    const img = await fetch(url, { headers: HF_TOKEN ? { Authorization: `Bearer ${HF_TOKEN}` } : {} });
+    if (!img.ok) throw new Error(`Result download failed (${img.status})`);
+    const type = (img.headers.get("content-type") || "image/png").split(";")[0];
+    const buf = Buffer.from(await img.arrayBuffer());
+    res.json({ image: `data:${type};base64,${buf.toString("base64")}` });
   } catch (err) {
-    res.status(502).json({ error: err.message || "Something went wrong." });
+    console.error("Try-on failed:", err?.message || err);
+    res.status(502).json({ error: friendlyError(err) });
   }
 });
 
@@ -214,5 +212,4 @@ module.exports = { findProductImage, isPrivateIp };
 
 if (require.main === module) app.listen(PORT, () => {
   console.log(`Try-on app running at http://localhost:${PORT}`);
-  if (!REPLICATE_TOKEN) console.warn("Warning: REPLICATE_API_TOKEN is not set; try-on requests will fail.");
 });

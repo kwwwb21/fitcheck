@@ -6,7 +6,7 @@ services:
     buildCommand: npm install
     startCommand: npm start
     envVars:
-      - key: REPLICATE_API_TOKEN
+      - key: HF_TOKEN
         sync: false
       - key: ACCESS_CODE
         sync: false

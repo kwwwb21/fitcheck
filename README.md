@@ -2,27 +2,32 @@
 
 Upload a photo of yourself, paste a shirt link (or upload the shirt image), and see yourself wearing it.
 
-## Run it
+Free to run: the try-on uses the public [IDM-VTON demo](https://huggingface.co/spaces/yisol/IDM-VTON) on Hugging Face, and the site can be hosted on Render's free plan. It works with tops (shirts, t-shirts, sweaters, jackets).
 
-1. Install [Node.js](https://nodejs.org) 18 or newer.
-2. Get an API token at https://replicate.com/account/api-tokens (add billing; each try-on costs a few cents).
-3. In this folder:
+Because the demo is shared and free, it can be slow, have a queue, or hit a daily usage limit.
 
-   ```bash
-   npm install
-   REPLICATE_API_TOKEN=your_token_here npm start
-   ```
+## Put it online (Render, free)
 
-   On Windows PowerShell: `$env:REPLICATE_API_TOKEN="your_token_here"; npm start`
+1. Sign up at https://render.com with your GitHub account.
+2. **New + → Blueprint**, pick this repository, click **Apply**.
+3. Optional settings:
+   - `HF_TOKEN` — a free token from https://huggingface.co/settings/tokens (type "Read"). Gives a bigger daily allowance than using the demo anonymously.
+   - `ACCESS_CODE` — a password visitors must enter. Leave blank for open access.
+   - `TRYONS_PER_IP_PER_DAY` / `TRYONS_TOTAL_PER_DAY` — daily limits (default 10 and 100).
 
-4. Open http://localhost:3000
+## Run it on your computer
+
+```bash
+npm install
+npm start
+```
+
+Open http://localhost:3000
 
 ## How it works
 
-- `public/` — the web page (HTML/CSS/JS). Photos are resized in the browser before upload.
+- `public/` — the web page. Photos are resized in the browser before upload.
 - `server.js`
   - `POST /api/extract-shirt` — opens the shop link and finds the product image (Product data, `og:image`, or `twitter:image`). Links to private/internal addresses are refused.
-  - `POST /api/tryon` — sends the photo and shirt to the IDM-VTON model on Replicate and returns the result.
+  - `POST /api/tryon` — sends the photo and shirt to the Hugging Face demo and returns the result.
 - Nothing is saved to disk.
-
-Set `TRYON_MODEL` to use a different Replicate try-on model with the same inputs.

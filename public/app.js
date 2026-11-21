@@ -108,7 +108,7 @@ $("garmentInput").addEventListener("change", async (e) => {
 // Step 3: try on
 $("tryBtn").addEventListener("click", async () => {
   $("tryBtn").disabled = true;
-  setStatus("Creating your picture… this usually takes 20–60 seconds.", "loading");
+  setStatus("Creating your picture… this can take 1–3 minutes on the free service.", "loading");
   try {
     const res = await fetch("/api/tryon", {
       method: "POST",
@@ -116,7 +116,6 @@ $("tryBtn").addEventListener("click", async () => {
       body: JSON.stringify({
         person: state.person,
         garment: state.garment,
-        category: $("category").value,
         description: $("description").value,
         code: $("accessCode").value,
       }),

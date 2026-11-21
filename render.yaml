@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: fitcheck
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: REPLICATE_API_TOKEN
+        sync: false
+      - key: ACCESS_CODE
+        sync: false
+      - key: TRYONS_PER_IP_PER_DAY
+        value: "10"
+      - key: TRYONS_TOTAL_PER_DAY
+        value: "100"

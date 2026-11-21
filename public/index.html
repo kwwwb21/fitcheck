@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FitCheck</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>FitCheck</h1>
+  <p>See how a shirt looks on you before you buy it.</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2><span class="num">1</span> Your photo</h2>
+    <p class="hint">A full-body or upper-body photo, facing the camera, plain background works best.</p>
+    <label class="drop" id="personDrop">
+      <input type="file" id="personInput" accept="image/*" hidden>
+      <img id="personPreview" alt="" hidden>
+      <span id="personPlaceholder">Tap to upload a photo</span>
+    </label>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">2</span> The shirt</h2>
+    <div class="tabs" role="tablist">
+      <button class="tab active" data-tab="link" role="tab">Paste a link</button>
+      <button class="tab" data-tab="upload" role="tab">Upload image</button>
+    </div>
+
+    <div id="tab-link">
+      <form id="linkForm" class="row">
+        <input type="url" id="shirtUrl" placeholder="https://shop.com/products/blue-shirt" required>
+        <button type="submit" id="fetchBtn">Get shirt</button>
+      </form>
+    </div>
+    <div id="tab-upload" hidden>
+      <input type="file" id="garmentInput" accept="image/*">
+    </div>
+
+    <div class="garment" id="garmentBox" hidden>
+      <img id="garmentPreview" alt="Shirt">
+    </div>
+
+    <div class="options">
+      <label>Type
+        <select id="category">
+          <option value="upper_body">Shirt / top</option>
+          <option value="lower_body">Pants / skirt</option>
+          <option value="dresses">Dress</option>
+        </select>
+      </label>
+      <label>Short description <span class="opt">(optional)</span>
+        <input type="text" id="description" placeholder="e.g. blue linen button-up shirt" maxlength="200">
+      </label>
+    </div>
+  </section>
+
+  <label class="code" id="codeBox" hidden>Access code
+    <input type="password" id="accessCode" autocomplete="off">
+  </label>
+  <button id="tryBtn" class="primary" disabled>Try it on</button>
+  <p id="status" class="status" role="status"></p>
+
+  <section class="card" id="resultCard" hidden>
+    <h2>Your result</h2>
+    <div class="compare">
+      <figure><img id="beforeImg" alt="Before"><figcaption>Before</figcaption></figure>
+      <figure><img id="afterImg" alt="After: wearing the new shirt"><figcaption>After</figcaption></figure>
+    </div>
+    <a id="downloadLink" class="secondary" download="fitcheck.jpg" target="_blank" rel="noopener">Download image</a>
+  </section>
+
+  <p class="privacy">Your photo is only used to make the image and isn't saved by this app.</p>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

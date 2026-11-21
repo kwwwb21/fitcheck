@@ -193,7 +193,7 @@ $("tryBtn").addEventListener("click", async () => {
   };
   tick();
   const timer = setInterval(tick, 1000);
-  setStatus("This usually takes 1–3 minutes on the free service. Keep this page open.");
+  setStatus("This usually takes under a minute, sometimes up to 3. Keep this page open.");
   try {
     const res = await fetch("/api/tryon", {
       method: "POST",

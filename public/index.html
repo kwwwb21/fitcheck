@@ -3,72 +3,140 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FitCheck</title>
+<title>FitCheck: try clothes on before you buy</title>
+<meta name="description" content="Upload a photo, paste a shirt link, and see yourself wearing it.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%232f5d50'/><path d='M11 8l-5 3 2 5 3-1v10h10V15l3 1 2-5-5-3c-1 2-3 3-5 3s-4-1-5-3z' fill='white'/></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<header>
-  <h1>FitCheck</h1>
-  <p>See how a shirt looks on you before you buy it.</p>
+
+<nav class="nav">
+  <a href="/" class="brand">
+    <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8"/><path d="M11 8l-5 3 2 5 3-1v10h10V15l3 1 2-5-5-3c-1 2-3 3-5 3s-4-1-5-3z"/></svg>
+    FitCheck
+  </a>
+  <span class="badge">Free beta</span>
+</nav>
+
+<header class="hero">
+  <h1>See it on you<br><em>before</em> you buy it.</h1>
+  <p>Upload a photo of yourself, add a shirt from any shop, and our AI dresses you in it.</p>
+  <ol class="steps-strip">
+    <li><span>1</span>Your photo</li>
+    <li><span>2</span>The shirt</li>
+    <li><span>3</span>Try it on</li>
+  </ol>
 </header>
 
 <main>
-  <section class="card">
-    <h2><span class="num">1</span> Your photo</h2>
-    <p class="hint">A full-body or upper-body photo, facing the camera, plain background works best.</p>
-    <label class="drop" id="personDrop">
-      <input type="file" id="personInput" accept="image/*" hidden>
-      <img id="personPreview" alt="" hidden>
-      <span id="personPlaceholder">Tap to upload a photo</span>
-    </label>
-  </section>
-
-  <section class="card">
-    <h2><span class="num">2</span> The shirt</h2>
-    <div class="tabs" role="tablist">
-      <button class="tab active" data-tab="link" role="tab">Paste a link</button>
-      <button class="tab" data-tab="upload" role="tab">Upload image</button>
-    </div>
-
-    <div id="tab-link">
-      <form id="linkForm" class="row">
-        <input type="url" id="shirtUrl" placeholder="https://shop.com/products/blue-shirt" required>
-        <button type="submit" id="fetchBtn">Get shirt</button>
-      </form>
-    </div>
-    <div id="tab-upload" hidden>
-      <input type="file" id="garmentInput" accept="image/*">
-    </div>
-
-    <div class="garment" id="garmentBox" hidden>
-      <img id="garmentPreview" alt="Shirt">
-    </div>
-
-    <div class="options">
-      <p class="hint">Works with tops: shirts, t-shirts, sweaters and jackets.</p>
-      <label>Short description <span class="opt">(optional)</span>
-        <input type="text" id="description" placeholder="e.g. blue linen button-up shirt" maxlength="200">
+  <div class="grid">
+    <section class="card">
+      <div class="card-head">
+        <span class="num">1</span>
+        <div>
+          <h2>Your photo</h2>
+          <p class="hint">Facing the camera, arms by your sides.</p>
+        </div>
+      </div>
+      <label class="drop" id="personDrop">
+        <input type="file" id="personInput" accept="image/*" hidden>
+        <img id="personPreview" alt="Your photo" hidden>
+        <span class="drop-empty" id="personPlaceholder">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
+          <strong>Upload a photo</strong>
+          <small>Tap to choose, or drop it here</small>
+        </span>
+        <span class="drop-change">Change photo</span>
       </label>
+      <details class="tips">
+        <summary>Tips for the best result</summary>
+        <ul>
+          <li>Head to at least your knees in the picture</li>
+          <li>Plain background and good light</li>
+          <li>Wear fitted clothes, nothing bulky over the top</li>
+        </ul>
+      </details>
+    </section>
+
+    <section class="card">
+      <div class="card-head">
+        <span class="num">2</span>
+        <div>
+          <h2>The shirt</h2>
+          <p class="hint">Shirts, t-shirts, sweaters and jackets.</p>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button class="tab active" data-tab="link" role="tab" type="button">Paste a link</button>
+        <button class="tab" data-tab="upload" role="tab" type="button">Upload image</button>
+      </div>
+
+      <div id="tab-link">
+        <form id="linkForm" class="row">
+          <input type="url" id="shirtUrl" placeholder="Paste a product link" required>
+          <button type="submit" id="fetchBtn" class="btn">Get shirt</button>
+        </form>
+      </div>
+      <div id="tab-upload" hidden>
+        <label class="drop drop-small" id="garmentDrop">
+          <input type="file" id="garmentInput" accept="image/*" hidden>
+          <span class="drop-empty">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 3 6l2 5 2-1v11h10V10l2 1 2-5-5-3c-.7 1.5-2.2 2.5-4 2.5S8.7 4.5 8 3z"/></svg>
+            <strong>Upload a shirt picture</strong>
+            <small>A product photo works best</small>
+          </span>
+        </label>
+      </div>
+
+      <div class="garment" id="garmentBox" hidden>
+        <img id="garmentPreview" alt="Selected shirt">
+        <button type="button" class="drop-change" id="changeShirt">Change shirt</button>
+      </div>
+
+      <label class="field"><span>Describe it <span class="opt">(optional, helps the AI)</span></span>
+        <input type="text" id="description" placeholder="e.g. beige linen blazer" maxlength="200">
+      </label>
+    </section>
+  </div>
+
+  <div class="cta">
+    <label class="field code" id="codeBox" hidden>Access code
+      <input type="password" id="accessCode" autocomplete="off">
+    </label>
+    <button id="tryBtn" class="btn btn-big" disabled>
+      <span id="tryLabel">Try it on</span>
+    </button>
+    <p id="status" class="status" role="status"></p>
+  </div>
+
+  <section class="card result" id="resultCard" hidden>
+    <div class="result-head">
+      <h2>Your new look</h2>
+      <p class="hint">Drag the slider to compare.</p>
+    </div>
+    <div class="compare" id="compare">
+      <img id="afterImg" alt="You wearing the new shirt">
+      <div class="before-layer" id="beforeLayer"><img id="beforeImg" alt="Your original photo"></div>
+      <div class="divider" id="divider"><span></span></div>
+      <span class="tag tag-left">Before</span>
+      <span class="tag tag-right">After</span>
+      <input type="range" id="slider" min="0" max="100" value="50" aria-label="Compare before and after">
+    </div>
+    <div class="result-actions">
+      <a id="downloadLink" class="btn" download="fitcheck.jpg">Download</a>
+      <button id="againBtn" class="btn btn-ghost" type="button">Try another shirt</button>
     </div>
   </section>
-
-  <label class="code" id="codeBox" hidden>Access code
-    <input type="password" id="accessCode" autocomplete="off">
-  </label>
-  <button id="tryBtn" class="primary" disabled>Try it on</button>
-  <p id="status" class="status" role="status"></p>
-
-  <section class="card" id="resultCard" hidden>
-    <h2>Your result</h2>
-    <div class="compare">
-      <figure><img id="beforeImg" alt="Before"><figcaption>Before</figcaption></figure>
-      <figure><img id="afterImg" alt="After: wearing the new shirt"><figcaption>After</figcaption></figure>
-    </div>
-    <a id="downloadLink" class="secondary" download="fitcheck.jpg" target="_blank" rel="noopener">Download image</a>
-  </section>
-
-  <p class="privacy">Your photo is only used to make the image and isn't saved by this app.</p>
 </main>
+
+<footer>
+  <p>🔒 Your photo is only used to make the picture. It is never saved.</p>
+  <p class="muted">AI results are a preview and may not match the real fit exactly.</p>
+</footer>
 
 <script src="app.js"></script>
 </body>

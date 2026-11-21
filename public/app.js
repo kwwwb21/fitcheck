@@ -100,8 +100,22 @@ function setGarment(dataUrl) {
   state.garment = dataUrl;
   $("garmentPreview").src = dataUrl;
   $("garmentBox").hidden = false;
+  $("garmentDrop").hidden = true;
+  $("linkForm").hidden = true;
   updateButton();
 }
+
+function clearGarment() {
+  state.garment = null;
+  $("garmentBox").hidden = true;
+  $("garmentPreview").removeAttribute("src");
+  $("garmentDrop").hidden = false;
+  $("linkForm").hidden = false;
+  $("shirtUrl").value = "";
+  $("garmentInput").value = "";
+  updateButton();
+}
+$("changeShirt").addEventListener("click", () => { clearGarment(); setStatus(""); });
 
 // Step 1: person photo
 $("personInput").addEventListener("change", async (e) => {
@@ -115,6 +129,7 @@ $("personInput").addEventListener("change", async (e) => {
     $("personPreview").src = state.person;
     $("personPreview").hidden = false;
     $("personPlaceholder").hidden = true;
+    $("personDrop").classList.add("has-image");
     setStatus("");
   } catch (err) {
     setStatus(err.message, "error");
@@ -136,7 +151,7 @@ $("linkForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = $("fetchBtn");
   btn.disabled = true;
-  setStatus("Looking for the shirt on that page…", "loading");
+  setStatus("Looking for the shirt on that page…");
   try {
     const res = await fetch("/api/extract-shirt", {
       method: "POST",
@@ -168,8 +183,17 @@ $("garmentInput").addEventListener("change", async (e) => {
 
 // Step 3: try on
 $("tryBtn").addEventListener("click", async () => {
-  $("tryBtn").disabled = true;
-  setStatus("Creating your picture… this can take 1–3 minutes on the free service.", "loading");
+  const btn = $("tryBtn");
+  btn.disabled = true;
+  btn.classList.add("loading");
+  const started = Date.now();
+  const tick = () => {
+    const sec = Math.floor((Date.now() - started) / 1000);
+    $("tryLabel").textContent = `Dressing you up… ${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`;
+  };
+  tick();
+  const timer = setInterval(tick, 1000);
+  setStatus("This usually takes 1–3 minutes on the free service. Keep this page open.");
   try {
     const res = await fetch("/api/tryon", {
       method: "POST",
@@ -187,15 +211,54 @@ $("tryBtn").addEventListener("click", async () => {
     const after = await trimResult(data.image, state.personBox);
     $("afterImg").src = after;
     $("downloadLink").href = after;
+    setSlider(50);
     $("resultCard").hidden = false;
     $("resultCard").scrollIntoView({ behavior: "smooth" });
     setStatus("");
   } catch (err) {
     setStatus(err.message || "Something went wrong.", "error");
   } finally {
+    clearInterval(timer);
+    btn.classList.remove("loading");
+    $("tryLabel").textContent = "Try it on";
     updateButton();
   }
 });
 
 // Show the access-code field only if the server asks for one.
 fetch("/api/config").then((r) => r.json()).then((c) => { $("codeBox").hidden = !c.needsCode; }).catch(() => {});
+
+// Before/after slider
+function setSlider(v) {
+  $("slider").value = v;
+  $("beforeLayer").style.clipPath = `inset(0 ${100 - v}% 0 0)`;
+  $("divider").style.left = v + "%";
+}
+$("slider").addEventListener("input", (e) => setSlider(e.target.value));
+
+// Start over with a different shirt (keeps the person photo)
+$("againBtn").addEventListener("click", () => {
+  clearGarment();
+  $("description").value = "";
+  $("resultCard").hidden = true;
+  setStatus("");
+  $("shirtUrl").closest(".card").scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+// Drag-and-drop onto the upload boxes
+for (const [dropId, inputId] of [["personDrop", "personInput"], ["garmentDrop", "garmentInput"]]) {
+  const drop = $(dropId);
+  drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("dragover"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("dragover"));
+  drop.addEventListener("drop", (e) => {
+    e.preventDefault();
+    drop.classList.remove("dragover");
+    const file = e.dataTransfer.files[0];
+    if (!file || !file.type.startsWith("image/")) return setStatus("Please drop an image file.", "error");
+    const input = $(inputId);
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change"));
+  });
+}
